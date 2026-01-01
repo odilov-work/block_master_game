@@ -110,6 +110,33 @@ class GameState extends ChangeNotifier {
     return nearestPos;
   }
 
+  Offset? findSmartValidPosition(PieceShape piece, int targetX, int targetY) {
+    // 1. Check exact position first
+    if (canPlacePiece(piece, targetX, targetY)) {
+      return Offset(targetX.toDouble(), targetY.toDouble());
+    }
+
+    // 2. Search only cardinal neighbors (up, down, left, right - dist 1)
+    // No diagonals to keep suggestions very tight
+    const List<List<int>> cardinalOffsets = [
+      [0, -1], // up
+      [0, 1], // down
+      [-1, 0], // left
+      [1, 0], // right
+    ];
+
+    for (var offset in cardinalOffsets) {
+      int nx = targetX + offset[0];
+      int ny = targetY + offset[1];
+
+      if (canPlacePiece(piece, nx, ny)) {
+        return Offset(nx.toDouble(), ny.toDouble());
+      }
+    }
+
+    return null;
+  }
+
   Set<Point<int>> getPotentialClears(PieceShape piece, int gridX, int gridY) {
     if (!canPlacePiece(piece, gridX, gridY)) return {};
     var result = getPotentialClearLines(piece, gridX, gridY);

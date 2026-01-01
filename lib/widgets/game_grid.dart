@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:block_master_game/core/extensions.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:block_master_game/piece_generator.dart';
 import 'package:block_master_game/providers/game_provider.dart';
 import 'package:block_master_game/widgets/grid_painter.dart';
@@ -70,7 +71,7 @@ class _GameGridState extends State<GameGrid>
       bool canPlace = false;
 
       if (gridPos != null) {
-        rawSnappedPos = widget.gameState.findStrictValidPosition(
+        rawSnappedPos = widget.gameState.findSmartValidPosition(
           widget.draggingPiece!,
           gridPos.dx.toInt(),
           gridPos.dy.toInt(),
@@ -83,7 +84,7 @@ class _GameGridState extends State<GameGrid>
         _pendingSnappedPos = rawSnappedPos;
         _debounceTimer?.cancel();
 
-        _debounceTimer = Timer(const Duration(milliseconds: 75), () {
+        _debounceTimer = Timer(const Duration(milliseconds: 100), () {
           if (mounted) {
             setState(() {
               _displayedSnappedPos = rawSnappedPos;
@@ -119,27 +120,50 @@ class _GameGridState extends State<GameGrid>
         _gridKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return null;
 
-    final localPos = box.globalToLocal(globalPosition);
+    final cellSize = widget.gridSize / GameConstants.gridSize;
+
+    if (widget.draggingPiece == null) return null;
+
+    // --- Shaklni centroid pozitsiyasidan foydalanish ---
+    // GameScreen:
+    //   piece top-left = (dragPosition.dx - pieceWidth/2, dragPosition.dy - pieceHeight - 200)
+    //
+    // Shaklni centroid (o'z markaziga nisbatan) - masalan L-shakl uchun bu burchakdan emas
+
+    final piece = widget.draggingPiece!;
+    final centroid =
+        piece.centroid; // Shaklning o'z markazi (kataklar birligida)
+
+    // Vizual piece top-left (screen koordinatalarida)
+    final pieceWidth = piece.width * cellSize;
+    final pieceHeight = piece.height * cellSize;
+    final visualLeft = globalPosition.dx - pieceWidth / 2;
+    final visualTop = globalPosition.dy - pieceHeight - 200.h;
+
+    // Centroid pozitsiyasini screen ga o'tkazish
+    final centroidScreenX = visualLeft + centroid.dx * cellSize;
+    final centroidScreenY = visualTop + centroid.dy * cellSize;
+
+    // Grid lokal koordinatasi
+    final localCentroid = box.globalToLocal(
+      Offset(centroidScreenX, centroidScreenY),
+    );
 
     // Grid chegarasidan chiqib ketsa null qaytarish
-    // Bu taklifni yo'qotadi
-    if (localPos.dx < 0 ||
-        localPos.dx > box.size.width ||
-        localPos.dy < 0 ||
-        localPos.dy > box.size.height) {
+    if (localCentroid.dx < -cellSize ||
+        localCentroid.dx > box.size.width + cellSize ||
+        localCentroid.dy < -cellSize ||
+        localCentroid.dy > box.size.height + cellSize) {
       return null;
     }
 
-    final cellSize = widget.gridSize / GameConstants.gridSize;
+    // Centroid qaysi grid katagiga tushadi
+    final centroidGridX = (localCentroid.dx / cellSize).floor();
+    final centroidGridY = (localCentroid.dy / cellSize).floor();
 
-    int gridX = (localPos.dx / cellSize).floor();
-    int gridY = (localPos.dy / cellSize).floor();
-
-    // Shakl markazini sichqoncha/barmoq ostiga to'g'irlash
-    if (widget.draggingPiece != null) {
-      gridX -= (widget.draggingPiece!.width / 2).floor();
-      gridY -= (widget.draggingPiece!.height / 2).floor();
-    }
+    // Top-left pozitsiyani hisoblash (centroid - centroid offset)
+    int gridX = centroidGridX - centroid.dx.floor();
+    int gridY = centroidGridY - centroid.dy.floor();
 
     return Offset(gridX.toDouble(), gridY.toDouble());
   }

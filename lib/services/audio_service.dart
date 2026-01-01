@@ -1,43 +1,60 @@
 import 'package:flame_audio/flame_audio.dart';
 import 'package:block_master_game/services/local_storage_service.dart';
+import 'package:flutter/material.dart';
 
 class GameAudioService {
-  // MUHIM: FlameAudio avtomatik ravishda 'assets/audio/' papkasiga qaraydi.
-  // Shuning uchun yo'lni to'liq yozish shart emas, faqat fayl nomi yetarli.
   static const String _placeSound = 'place.wav';
   static const String _clearSound = 'clear.wav';
   static const String _gameOverSound = 'game-over.wav';
 
-  /// Ilova boshlanishida chaqirilishi kerak (masalan, main.dart yoki splash screenda)
+  // AudioPool obyektlari
+  static late AudioPool _placePool;
+  static late AudioPool _clearPool;
+  // Game over kamroq bo'lgani uchun unga oddiy play ishlataveramiz
+
   static Future<void> init() async {
-    // 1. Keshga yuklash (Caching)
-    // O'yin davomida qotishlar (lag) bo'lmasligi uchun ovozlarni oldindan xotiraga yuklaymiz.
+    // 1. Keshga yuklash (Game Over va boshqa uzunroq ovozlar uchun)
     await FlameAudio.audioCache.loadAll([
       _placeSound,
       _clearSound,
       _gameOverSound,
     ]);
-  }
 
-  /// Umumiy o'ynatish funksiyasi
-  static void _play(String fileName) {
-    // Ovoz yoqilganligini tekshiramiz
-    if (LocalStorageService.getSoundEnabled()) {
-      // FlameAudio.play metodi "fire-and-forget" prinsipida ishlaydi.
-      // U avtomatik ravishda bo'sh turgan playerni topadi yoki yangisini yaratadi.
-      FlameAudio.play(fileName);
+    // 2. AudioPool yaratish (Qisqa va tez effektlar uchun)
+    // Bu yerda 'await' juda muhim, u ovoz "READY" bo'lishini kutadi.
+    try {
+      _placePool = await FlameAudio.createPool(
+        _placeSound,
+        maxPlayers: 4, // Bir vaqtda 4 tagacha 'place' ovozi chiqishi mumkin
+        minPlayers: 1,
+      );
+
+      _clearPool = await FlameAudio.createPool(
+        _clearSound,
+        maxPlayers: 2,
+        minPlayers: 1,
+      );
+    } catch (e) {
+      debugPrint("Audio init error: $e");
     }
   }
 
   static void playPlace() {
-    _play(_placeSound);
+    if (LocalStorageService.getSoundEnabled()) {
+      // start() metodi ID tayyor bo'lishini kutadi
+      _placePool.start(volume: 1.0);
+    }
   }
 
   static void playClear() {
-    _play(_clearSound);
+    if (LocalStorageService.getSoundEnabled()) {
+      _clearPool.start(volume: 1.0);
+    }
   }
 
   static void playGameOver() {
-    _play(_gameOverSound);
+    if (LocalStorageService.getSoundEnabled()) {
+      FlameAudio.play(_gameOverSound);
+    }
   }
 }

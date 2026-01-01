@@ -108,6 +108,20 @@ class PieceShape {
     }
     return result;
   }
+
+  /// Shaklning markazini (centroid) hisoblash
+  /// Bu barcha to'ldirilgan kataklarning o'rtacha pozitsiyasi
+  Offset get centroid {
+    final c = cells;
+    if (c.isEmpty) return Offset.zero;
+
+    double sumX = 0, sumY = 0;
+    for (var cell in c) {
+      sumX += cell.dx + 0.5; // Katak markaziga
+      sumY += cell.dy + 0.5;
+    }
+    return Offset(sumX / c.length, sumY / c.length);
+  }
 }
 
 // ============================================================================

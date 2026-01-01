@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:block_master_game/piece_generator.dart';
 import 'package:block_master_game/widgets/piece_painter.dart';
 
@@ -61,7 +62,7 @@ class _PieceSlot extends StatelessWidget {
   Widget build(BuildContext context) {
     // 1-O'ZGARISH: Bosish maydoni o'lchamini kattalashtiramiz (masalan 120.0)
     // Avval kichikroq edi, bu barmoq sig'ishini osonlashtiradi.
-    const double slotSize = 120.0;
+    final double slotSize = 120.w;
 
     return GestureDetector(
       // 2-O'ZGARISH: Bu juda muhim!
@@ -98,7 +99,7 @@ class _PieceSlot extends StatelessWidget {
 
   Widget _buildPiecePreview(PieceShape piece) {
     // Preview o'lchami o'zgarmaydi, faqat konteyner kattalashdi
-    final cellSize = GameConstants.cellSize * GameConstants.piecePreviewScale;
+    final cellSize = 35.w * GameConstants.piecePreviewScale;
     final width = piece.width * cellSize;
     final height = piece.height * cellSize;
 

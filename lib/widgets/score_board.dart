@@ -1,5 +1,6 @@
 import 'package:block_master_game/core/extensions.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:block_master_game/piece_generator.dart';
 
 class ScoreBoard extends StatelessWidget {
@@ -17,7 +18,7 @@ class ScoreBoard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: EdgeInsets.symmetric(horizontal: 20.w),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -64,20 +65,20 @@ class _ScoreItem extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 4),
+            Icon(icon, color: color, size: 18.sp),
+            SizedBox(width: 4.w),
             Text(
               label,
               style: TextStyle(
                 color: Colors.white.withOpacityX(0.6),
-                fontSize: 12,
+                fontSize: 12.sp,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.5,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: 4.h),
         TweenAnimationBuilder<int>(
           tween: IntTween(begin: 0, end: int.parse(value)),
           duration: const Duration(milliseconds: 500),
@@ -86,7 +87,7 @@ class _ScoreItem extends StatelessWidget {
               animatedValue.toString(),
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 32,
+                fontSize: 32.sp,
                 fontWeight: FontWeight.bold,
                 shadows: [
                   Shadow(color: color.withOpacityX(0.5), blurRadius: 10),
@@ -147,12 +148,12 @@ class _ComboIndicatorState extends State<_ComboIndicator>
     return ScaleTransition(
       scale: _scaleAnimation,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [Colors.orange.shade400, Colors.red.shade400],
           ),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(20.r),
           boxShadow: [
             BoxShadow(
               color: Colors.orange.withOpacityX(0.4),
@@ -164,17 +165,13 @@ class _ComboIndicatorState extends State<_ComboIndicator>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.local_fire_department,
-              color: Colors.white,
-              size: 20,
-            ),
-            const SizedBox(width: 4),
+            Icon(Icons.local_fire_department, color: Colors.white, size: 20.sp),
+            SizedBox(width: 4.w),
             Text(
               'x${widget.combo}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 18,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.bold,
               ),
             ),

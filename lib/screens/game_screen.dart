@@ -7,6 +7,7 @@ import 'package:block_master_game/widgets/piece_selector.dart';
 import 'package:block_master_game/widgets/score_board.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 
 class GameScreen extends StatefulWidget {
@@ -77,8 +78,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final gameState = context.watch<GameState>();
-    final size = MediaQuery.of(context).size;
-    final gridSize = (size.width - 32).clamp(280.0, 400.0);
+    final gridSize = 350.w.clamp(280.0, 400.0);
 
     if (gameState.isGameOver) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -95,7 +95,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             Positioned.fill(child: CustomPaint(painter: BackgroundPainter())),
             Column(
               children: [
-                const SizedBox(height: 16),
+                SizedBox(height: 16.h),
                 ScoreBoard(
                   score: gameState.score,
                   highScore: gameState.highScore,
@@ -122,7 +122,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   onDragEnd: _onDragEnd,
                   draggingIndex: draggingPieceIndex,
                 ),
-                SizedBox(height: 40),
+                SizedBox(height: 40.h),
               ],
             ),
             if (draggingPieceIndex != null && dragPosition != null)
@@ -140,18 +140,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final piece = gameState.availablePieces[draggingPieceIndex!];
     if (piece == null) return const SizedBox();
 
-    final cellSize = GameConstants
-        .cellSize; // Asl o'lcham emas, hisoblangan bo'lishi kerak aslida
-    // Eslatma: To'g'ri o'lcham GameGrid ichida hisoblanyapti, lekin drag paytida
-    // vizual effekt uchun standart o'lcham ishlatsa bo'ladi.
-    // Aniqroq bo'lishi uchun GameGrid o'lchamini olish kerak, lekin hozircha constant.
+    final gridSize = 350.w.clamp(280.0, 400.0);
+    final cellSize = gridSize / GameConstants.gridSize;
 
     final pieceWidth = piece.width * cellSize;
     final pieceHeight = piece.height * cellSize;
 
     return Positioned(
       left: dragPosition!.dx - pieceWidth / 2,
-      top: dragPosition!.dy - pieceHeight - 50,
+      top: dragPosition!.dy - pieceHeight - 200.h,
       child: IgnorePointer(
         child: Transform.scale(
           scale: 1.1,
@@ -171,7 +168,3 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 }
-
-// ============================================================================
-// PAINTERS & WIDGETS
-// ============================================================================

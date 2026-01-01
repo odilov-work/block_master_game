@@ -3,6 +3,7 @@ import 'package:block_master_game/providers/game_provider.dart';
 import 'package:block_master_game/screens/game_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 
 // ============================================================================
@@ -32,19 +33,24 @@ class BlockPuzzleApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => GameState(),
-      child: MaterialApp(
-        title: 'Block Puzzle',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF6C5CE7),
-            brightness: Brightness.dark,
+    return ScreenUtilInit(
+      designSize: const Size(390, 844),
+      minTextAdapt: true,
+      splitScreenMode: true,
+      child: ChangeNotifierProvider(
+        create: (_) => GameState(),
+        child: MaterialApp(
+          title: 'Block Puzzle',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF6C5CE7),
+              brightness: Brightness.dark,
+            ),
+            useMaterial3: true,
           ),
-          useMaterial3: true,
+          home: const GameScreen(),
         ),
-        home: const GameScreen(),
       ),
     );
   }

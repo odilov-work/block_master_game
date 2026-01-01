@@ -39,6 +39,7 @@ dependencies:
   hive_ce: ^2.16.0
   hive_ce_flutter: ^2.3.3
   flame_audio: ^2.11.12
+  flutter_screenutil: ^5.9.3
 
 dev_dependencies:
   flutter_test:
