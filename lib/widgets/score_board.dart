@@ -19,19 +19,43 @@ class GameHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return Container(
       padding: EdgeInsets.symmetric(horizontal: 20.w),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          // Left side: Stats
-          _ScoreItem(
-            label: 'BEST',
-            value: highScore.toString(),
-            icon: Icons.emoji_events_rounded,
-            color: const Color(0xFFFFD700),
-            isSmall: true,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Left side: Stats
+              _ScoreItem(
+                label: 'BEST',
+                value: highScore.toString(),
+                icon: Icons.emoji_events_rounded,
+                color: const Color(0xFFFFD700),
+                isSmall: true,
+              ),
+
+              GestureDetector(
+                onTap: onMenuPressed,
+                child: Container(
+                  padding: EdgeInsets.all(10.w),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacityX(0.05),
+                    borderRadius: BorderRadius.circular(120.r),
+                    border: Border.all(
+                      color: Colors.white.withOpacityX(0.1),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.menu_rounded,
+                    color: Colors.white,
+                    size: 24.sp,
+                  ),
+                ),
+              ),
+            ],
           ),
 
           _ScoreItem(
@@ -39,22 +63,6 @@ class GameHeader extends StatelessWidget {
             value: score.toString(),
             icon: Icons.stars_rounded,
             color: GameConstants.accentColor,
-          ),
-
-          GestureDetector(
-            onTap: onMenuPressed,
-            child: Container(
-              padding: EdgeInsets.all(10.w),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacityX(0.05),
-                borderRadius: BorderRadius.circular(12.r),
-                border: Border.all(
-                  color: Colors.white.withOpacityX(0.1),
-                  width: 1,
-                ),
-              ),
-              child: Icon(Icons.menu_rounded, color: Colors.white, size: 24.sp),
-            ),
           ),
         ],
       ),
@@ -82,20 +90,22 @@ class _ScoreItem extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: color, size: isSmall ? 14.sp : 18.sp),
-        SizedBox(width: 6.w),
+        if (isSmall) ...[
+          Icon(icon, color: color, size: isSmall ? 14.sp : 18.sp),
+          SizedBox(width: 6.w),
+        ],
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TweenAnimationBuilder<int>(
               tween: IntTween(begin: 0, end: int.parse(value)),
-              duration: const Duration(milliseconds: 500),
+              duration: const Duration(milliseconds: 1000),
               builder: (context, animatedValue, child) {
                 return Text(
                   animatedValue.toString(),
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: isSmall ? 16.sp : 24.sp,
+                    fontSize: isSmall ? 16.sp : 34.sp,
                     fontWeight: isSmall ? FontWeight.w500 : FontWeight.bold,
                     shadows: [
                       Shadow(color: color.withOpacityX(0.5), blurRadius: 8),

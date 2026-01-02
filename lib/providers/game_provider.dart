@@ -21,10 +21,10 @@ class GameState extends ChangeNotifier {
 
   GameState() {
     _smartGenerator = SmartPieceGenerator(
-      challengeAfterHelpful: 2,
-      baseChallengeChance: 0.15,
-      criticalThreshold: 0.75,
-      rewardAfterLines: 3,
+      challengeAfterHelpful: 4, // More helpful pieces before challenge (was 2)
+      baseChallengeChance: 0.05, // Less random hard pieces (was 0.15)
+      criticalThreshold: 0.85, // Critical mode triggers later (was 0.75)
+      rewardAfterLines: 2, // Get helpful pieces sooner (was 3)
     );
     _initializeGrid();
     _loadHighScore();
@@ -234,7 +234,17 @@ class GameState extends ChangeNotifier {
       // We can use the `clearingCells` set which is populated in _clearCompleteLines before this.
       int totalClearedCells = clearingCells.length;
 
-      int multiplier = linesCleared * 2;
+      int multiplier = 1;
+      if (linesCleared == 1) {
+        multiplier = 2;
+      } else if (linesCleared == 2) {
+        multiplier = 4;
+      } else if (linesCleared == 3) {
+        multiplier = 10;
+      } else if (linesCleared >= 4) {
+        multiplier = 20;
+      }
+
       score += totalClearedCells * multiplier;
 
       // GameAudioService.playClear(); // This is handled in _performClear after delay

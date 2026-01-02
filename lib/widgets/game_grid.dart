@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:block_master_game/core/extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -28,11 +29,11 @@ class GameGrid extends StatefulWidget {
   State<GameGrid> createState() => _GameGridState();
 }
 
-class _GameGridState extends State<GameGrid>
-    with SingleTickerProviderStateMixin {
+class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
   final GlobalKey _gridKey = GlobalKey();
   late AnimationController _clearAnimationController;
   late Animation<double> _clearAnimation;
+  late AnimationController _shakeController;
 
   Timer? _debounceTimer;
   Offset? _displayedSnappedPos;
@@ -51,6 +52,14 @@ class _GameGridState extends State<GameGrid>
     _clearAnimationController.addListener(() {
       setState(() {});
     });
+
+    _shakeController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _shakeController.addListener(() {
+      setState(() {});
+    });
   }
 
   @override
@@ -61,6 +70,9 @@ class _GameGridState extends State<GameGrid>
         widget.gameState.clearingCells.isNotEmpty) {
       if (!_clearAnimationController.isAnimating) {
         _clearAnimationController.forward(from: 0);
+      }
+      if (!_shakeController.isAnimating) {
+        _shakeController.forward(from: 0);
       }
     }
 
@@ -130,6 +142,7 @@ class _GameGridState extends State<GameGrid>
   void dispose() {
     _debounceTimer?.cancel();
     _clearAnimationController.dispose();
+    _shakeController.dispose();
     super.dispose();
   }
 
@@ -199,42 +212,54 @@ class _GameGridState extends State<GameGrid>
       }
     }
 
-    return Container(
-      key: _gridKey,
-      width: widget.gridSize,
-      height: widget.gridSize,
-      decoration: BoxDecoration(
-        color: GameConstants.gridColor,
-        borderRadius: BorderRadius.zero,
-        border: Border.all(color: GameConstants.gridLineColor, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: GameConstants.accentColor.withOpacityX(0.2),
-            blurRadius: 20,
-            spreadRadius: 2,
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacityX(0.5),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.zero,
-        child: CustomPaint(
-          painter: GridPainter(
-            grid: widget.grid,
-            cellSize: cellSize,
-            hoverPosition: snappedPos,
-            hoverPiece: widget.draggingPiece,
-            canPlace: canPlace,
-            clearingCells: widget.gameState.clearingCells,
-            isClearing: widget.gameState.isClearing,
-            clearProgress: _clearAnimation.value,
-            previewRows: previewRows,
-            previewCols: previewCols,
-            previewColor: widget.draggingPiece?.color,
+    // Shake offset calculation
+    double shakeOffset = 0;
+    if (_shakeController.isAnimating) {
+      // Simple sine wave shake
+      final double progress = _shakeController.value;
+      // 3 full cycles (3 * 2 * pi)
+      shakeOffset = sin(progress * 3 * 2 * pi) * 5.0 * (1 - progress);
+    }
+
+    return Transform.translate(
+      offset: Offset(shakeOffset, 0),
+      child: Container(
+        key: _gridKey,
+        width: widget.gridSize,
+        height: widget.gridSize,
+        decoration: BoxDecoration(
+          color: GameConstants.gridColor,
+          borderRadius: BorderRadius.zero,
+          border: Border.all(color: GameConstants.gridLineColor, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: GameConstants.accentColor.withOpacityX(0.2),
+              blurRadius: 20,
+              spreadRadius: 2,
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacityX(0.5),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.zero,
+          child: CustomPaint(
+            painter: GridPainter(
+              grid: widget.grid,
+              cellSize: cellSize,
+              hoverPosition: snappedPos,
+              hoverPiece: widget.draggingPiece,
+              canPlace: canPlace,
+              clearingCells: widget.gameState.clearingCells,
+              isClearing: widget.gameState.isClearing,
+              clearProgress: _clearAnimation.value,
+              previewRows: previewRows,
+              previewCols: previewCols,
+              previewColor: widget.draggingPiece?.color,
+            ),
           ),
         ),
       ),
