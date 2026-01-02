@@ -44,6 +44,17 @@ class GridCell {
     occupied = true;
     color = c;
   }
+
+  Map<String, dynamic> toJson() {
+    return {'occupied': occupied, 'color': color?.value};
+  }
+
+  factory GridCell.fromJson(Map<String, dynamic> json) {
+    return GridCell(
+      occupied: json['occupied'] ?? false,
+      color: json['color'] != null ? Color(json['color']) : null,
+    );
+  }
 }
 
 // ============================================================================

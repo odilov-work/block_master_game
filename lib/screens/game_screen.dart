@@ -1,10 +1,13 @@
 import 'package:block_master_game/providers/game_provider.dart';
 import 'package:block_master_game/piece_generator.dart';
 import 'package:block_master_game/widgets/background_painter.dart';
+import 'package:block_master_game/core/extensions.dart';
 import 'package:block_master_game/widgets/game_grid.dart';
 import 'package:block_master_game/widgets/piece_painter.dart';
 import 'package:block_master_game/widgets/piece_selector.dart';
 import 'package:block_master_game/widgets/score_board.dart';
+import 'package:block_master_game/widgets/game_menu_dialog.dart';
+import 'package:block_master_game/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -17,12 +20,50 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
+class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   int? draggingPieceIndex;
   Offset? dragPosition;
   Offset? gridHoverPosition;
   Offset? snappedPosition;
   bool canPlace = false;
+  late GameState gameState;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
+    // O'yin boshlanganda saqlangan o'yinni yuklashga urinib ko'ramiz
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      gameState = context.read<GameState>();
+      debugPrint('GameScreen: Attempting to load game...');
+      if (!gameState.loadGame()) {
+        debugPrint('GameScreen: No saved game found, restarting...');
+        // Agar saqlangan o'yin bo'lmasa yoki yuklashda xatolik bo'lsa, yangi o'yin
+        gameState.restartGame();
+      } else {
+        debugPrint('GameScreen: Game loaded successfully!');
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    // O'yin yopilganda saqlash
+    debugPrint('GameScreen: Disposing, saving game...');
+    gameState.saveGame();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      debugPrint('GameScreen: App paused/inactive, saving game...');
+      gameState.saveGame();
+    }
+  }
 
   void _onDragStart(int pieceIndex, Offset globalPosition) {
     HapticFeedback.lightImpact();
@@ -96,10 +137,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             Column(
               children: [
                 SizedBox(height: 16.h),
-                ScoreBoard(
+                GameHeader(
                   score: gameState.score,
                   highScore: gameState.highScore,
                   combo: gameState.combo,
+                  onMenuPressed: _showMenuDialog,
                 ),
                 const Spacer(),
                 Center(
@@ -133,7 +175,38 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _showGameOverDialog() {}
+  void _showGameOverDialog() {
+    // O'yin tugaganda saqlangan o'yinni o'chirish
+    gameState.clearSavedGame();
+    // ... dialog logic (hozircha bo'sh)
+  }
+
+  void _showMenuDialog() {
+    // Menu ochilganda saqlash
+    gameState.saveGame();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacityX(0.8),
+      builder: (context) => GameMenuDialog(
+        onResume: () => Navigator.pop(context),
+        onRestart: () {
+          Navigator.pop(context);
+          gameState.clearSavedGame();
+          gameState.restartGame();
+        },
+        onHome: () {
+          Navigator.pop(context);
+          gameState.saveGame();
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (route) => false,
+          );
+        },
+      ),
+    );
+  }
 
   Widget _buildDraggingPiece() {
     final gameState = context.read<GameState>();
@@ -148,7 +221,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
     return Positioned(
       left: dragPosition!.dx - pieceWidth / 2,
-      top: dragPosition!.dy - pieceHeight - 200.h,
+      top: dragPosition!.dy - pieceHeight - 100.h,
       child: IgnorePointer(
         child: Transform.scale(
           scale: 1.1,

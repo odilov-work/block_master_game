@@ -3,16 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:block_master_game/piece_generator.dart';
 
-class ScoreBoard extends StatelessWidget {
+class GameHeader extends StatelessWidget {
   final int score;
   final int highScore;
   final int combo;
+  final VoidCallback onMenuPressed;
 
-  const ScoreBoard({
+  const GameHeader({
     super.key,
     required this.score,
     required this.highScore,
     required this.combo,
+    required this.onMenuPressed,
   });
 
   @override
@@ -21,20 +23,38 @@ class ScoreBoard extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 20.w),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Left side: Stats
           _ScoreItem(
-            label: 'OCHKO',
+            label: 'BEST',
+            value: highScore.toString(),
+            icon: Icons.emoji_events_rounded,
+            color: const Color(0xFFFFD700),
+            isSmall: true,
+          ),
+
+          _ScoreItem(
+            label: 'SCORE',
             value: score.toString(),
             icon: Icons.stars_rounded,
             color: GameConstants.accentColor,
           ),
-          if (combo > 0) _ComboIndicator(combo: combo),
-          _ScoreItem(
-            label: 'REKORD',
-            value: highScore.toString(),
-            icon: Icons.emoji_events_rounded,
-            color: const Color(0xFFFFD700),
-            alignment: CrossAxisAlignment.end,
+
+          GestureDetector(
+            onTap: onMenuPressed,
+            child: Container(
+              padding: EdgeInsets.all(10.w),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacityX(0.05),
+                borderRadius: BorderRadius.circular(12.r),
+                border: Border.all(
+                  color: Colors.white.withOpacityX(0.1),
+                  width: 1,
+                ),
+              ),
+              child: Icon(Icons.menu_rounded, color: Colors.white, size: 24.sp),
+            ),
           ),
         ],
       ),
@@ -47,54 +67,44 @@ class _ScoreItem extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
-  final CrossAxisAlignment alignment;
+  final bool isSmall;
 
   const _ScoreItem({
     required this.label,
     required this.value,
     required this.icon,
     required this.color,
-    this.alignment = CrossAxisAlignment.start,
+    this.isSmall = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: alignment,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
+        Icon(icon, color: color, size: isSmall ? 14.sp : 18.sp),
+        SizedBox(width: 6.w),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: color, size: 18.sp),
-            SizedBox(width: 4.w),
-            Text(
-              label,
-              style: TextStyle(
-                color: Colors.white.withOpacityX(0.6),
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.5,
-              ),
+            TweenAnimationBuilder<int>(
+              tween: IntTween(begin: 0, end: int.parse(value)),
+              duration: const Duration(milliseconds: 500),
+              builder: (context, animatedValue, child) {
+                return Text(
+                  animatedValue.toString(),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isSmall ? 16.sp : 24.sp,
+                    fontWeight: isSmall ? FontWeight.w500 : FontWeight.bold,
+                    shadows: [
+                      Shadow(color: color.withOpacityX(0.5), blurRadius: 8),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
-        ),
-        SizedBox(height: 4.h),
-        TweenAnimationBuilder<int>(
-          tween: IntTween(begin: 0, end: int.parse(value)),
-          duration: const Duration(milliseconds: 500),
-          builder: (context, animatedValue, child) {
-            return Text(
-              animatedValue.toString(),
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 32.sp,
-                fontWeight: FontWeight.bold,
-                shadows: [
-                  Shadow(color: color.withOpacityX(0.5), blurRadius: 10),
-                ],
-              ),
-            );
-          },
         ),
       ],
     );

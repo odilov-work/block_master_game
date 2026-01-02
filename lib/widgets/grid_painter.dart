@@ -32,12 +32,22 @@ class GridPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Neon glow grid lines
+    final glowPaint = Paint()
+      ..color = const Color(0xFF6C5CE7).withOpacityX(0.15)
+      ..strokeWidth = 3
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
+
     final linePaint = Paint()
-      ..color = GameConstants.gridLineColor
+      ..color = const Color(0xFF6C5CE7).withOpacityX(0.4)
       ..strokeWidth = 1;
 
     for (int i = 0; i <= GameConstants.gridSize; i++) {
       final pos = i * cellSize;
+      // Glow
+      canvas.drawLine(Offset(pos, 0), Offset(pos, size.height), glowPaint);
+      canvas.drawLine(Offset(0, pos), Offset(size.width, pos), glowPaint);
+      // Line
       canvas.drawLine(Offset(pos, 0), Offset(pos, size.height), linePaint);
       canvas.drawLine(Offset(0, pos), Offset(size.width, pos), linePaint);
     }
@@ -118,27 +128,30 @@ class GridPainter extends CustomPainter {
       );
     }
 
-    final rect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        x * cellSize + 2,
-        y * cellSize + 2,
-        cellSize - 4,
-        cellSize - 4,
-      ),
-      Radius.zero,
+    final rect = Rect.fromLTWH(
+      x * cellSize + 2,
+      y * cellSize + 2,
+      cellSize - 4,
+      cellSize - 4,
     );
+    final rRect = RRect.fromRectAndRadius(rect, Radius.zero);
+
+    // Neon outer glow
+    if (!isClearing) {
+      canvas.drawRRect(
+        rRect.inflate(3),
+        Paint()
+          ..color = color.withOpacityX(0.4)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+      );
+    }
 
     if (isClearing) {
       final glowIntensity = 8.0 + (12.0 * progress);
       final glowPaint = Paint()
         ..color = Colors.white.withOpacityX(0.9)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, glowIntensity);
-      canvas.drawRRect(rect, glowPaint);
-    } else {
-      canvas.drawRRect(
-        rect.shift(const Offset(1, 1)),
-        Paint()..color = Colors.black.withOpacityX(0.3),
-      );
+      canvas.drawRRect(rRect, glowPaint);
     }
 
     final blockColor = isClearing
@@ -147,14 +160,12 @@ class GridPainter extends CustomPainter {
     final gradient = LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [blockColor, Color.lerp(blockColor, Colors.black, 0.2)!],
+      colors: [blockColor, Color.lerp(blockColor, Colors.black, 0.25)!],
     );
 
-    canvas.drawRRect(
-      rect,
-      Paint()..shader = gradient.createShader(rect.outerRect),
-    );
+    canvas.drawRRect(rRect, Paint()..shader = gradient.createShader(rect));
 
+    // Top highlight
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(
@@ -165,13 +176,14 @@ class GridPainter extends CustomPainter {
         ),
         Radius.zero,
       ),
-      Paint()..color = Colors.white.withOpacityX(isClearing ? 0.6 : 0.25),
+      Paint()..color = Colors.white.withOpacityX(isClearing ? 0.6 : 0.35),
     );
 
+    // Neon border
     canvas.drawRRect(
-      rect,
+      rRect,
       Paint()
-        ..color = Colors.white.withOpacityX(isClearing ? 0.9 : 0.1)
+        ..color = color.withOpacityX(isClearing ? 0.9 : 0.7)
         ..style = PaintingStyle.stroke
         ..strokeWidth = isClearing ? 2 : 1,
     );
@@ -230,16 +242,25 @@ class GridPainter extends CustomPainter {
       cellSize - 4,
       cellSize - 4,
     );
+    final rRect = RRect.fromRectAndRadius(rect, Radius.zero);
 
+    // Neon glow for preview
     canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, Radius.zero),
-      Paint()..color = Colors.white.withOpacityX(0.3),
+      rRect.inflate(2),
+      Paint()
+        ..color = const Color(0xFF00FFFF).withOpacityX(0.4)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
     );
 
     canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, Radius.zero),
+      rRect,
+      Paint()..color = const Color(0xFF00FFFF).withOpacityX(0.2),
+    );
+
+    canvas.drawRRect(
+      rRect,
       Paint()
-        ..color = Colors.white.withOpacityX(0.5)
+        ..color = const Color(0xFF00FFFF).withOpacityX(0.8)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2,
     );

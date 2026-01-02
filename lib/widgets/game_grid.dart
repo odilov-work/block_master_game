@@ -66,20 +66,21 @@ class _GameGridState extends State<GameGrid>
 
     if (widget.dragPosition != null && widget.draggingPiece != null) {
       final gridPos = _getGridPosition(widget.dragPosition!);
-
       Offset? rawSnappedPos;
-      bool canPlace = false;
 
       if (gridPos != null) {
-        rawSnappedPos = widget.gameState.findSmartValidPosition(
+        // Strict check - faqat aniq hisoblangan joyga sig'adimi?
+        if (widget.gameState.canPlacePiece(
           widget.draggingPiece!,
           gridPos.dx.toInt(),
           gridPos.dy.toInt(),
-        );
-        canPlace = rawSnappedPos != null;
+        )) {
+          rawSnappedPos = gridPos;
+        }
       }
 
-      // Debounce logic
+      // Debounce logic - faqat vizual va joylash uchun
+      // Yangi pozitsiya faqat debounce tugagandan keyin qabul qilinadi
       if (rawSnappedPos != _pendingSnappedPos) {
         _pendingSnappedPos = rawSnappedPos;
         _debounceTimer?.cancel();
@@ -89,9 +90,19 @@ class _GameGridState extends State<GameGrid>
             setState(() {
               _displayedSnappedPos = rawSnappedPos;
             });
-            widget.onGridHover(gridPos, _displayedSnappedPos, canPlace);
+            // Faqat debounce tugagandan keyin callback chaqiriladi
+            // Bu drop paytida "sakrash" muammosini hal qiladi
+            widget.onGridHover(
+              gridPos,
+              _displayedSnappedPos,
+              _displayedSnappedPos != null,
+            );
           }
         });
+      } else if (_displayedSnappedPos != null) {
+        // Agar pozitsiya o'zgarmagan bo'lsa, lekin dragging davom etayotgan bo'lsa
+        // joriy holatni yuborish (bu canPlace ni to'g'ri saqlaydi)
+        widget.onGridHover(gridPos, _displayedSnappedPos, true);
       }
     } else {
       // Drag tugadi yoki yo'q
@@ -124,46 +135,24 @@ class _GameGridState extends State<GameGrid>
 
     if (widget.draggingPiece == null) return null;
 
-    // --- Shaklni centroid pozitsiyasidan foydalanish ---
-    // GameScreen:
-    //   piece top-left = (dragPosition.dx - pieceWidth/2, dragPosition.dy - pieceHeight - 200)
-    //
-    // Shaklni centroid (o'z markaziga nisbatan) - masalan L-shakl uchun bu burchakdan emas
-
     final piece = widget.draggingPiece!;
-    final centroid =
-        piece.centroid; // Shaklning o'z markazi (kataklar birligida)
 
-    // Vizual piece top-left (screen koordinatalarida)
+    // --- Pixel Perfect Logic ---
+    // Vizual piece top-left pozitsiyasi (GameScreen dan):
+    //   left = dragPosition.dx - pieceWidth/2
+    //   top = dragPosition.dy - pieceHeight - 100.h
+
     final pieceWidth = piece.width * cellSize;
     final pieceHeight = piece.height * cellSize;
-    final visualLeft = globalPosition.dx - pieceWidth / 2;
-    final visualTop = globalPosition.dy - pieceHeight - 200.h;
 
-    // Centroid pozitsiyasini screen ga o'tkazish
-    final centroidScreenX = visualLeft + centroid.dx * cellSize;
-    final centroidScreenY = visualTop + centroid.dy * cellSize;
+    final topLeftX = globalPosition.dx - pieceWidth / 2;
+    final topLeftY = globalPosition.dy - pieceHeight - 50.h;
 
-    // Grid lokal koordinatasi
-    final localCentroid = box.globalToLocal(
-      Offset(centroidScreenX, centroidScreenY),
-    );
+    final localTopLeft = box.globalToLocal(Offset(topLeftX, topLeftY));
 
-    // Grid chegarasidan chiqib ketsa null qaytarish
-    if (localCentroid.dx < -cellSize ||
-        localCentroid.dx > box.size.width + cellSize ||
-        localCentroid.dy < -cellSize ||
-        localCentroid.dy > box.size.height + cellSize) {
-      return null;
-    }
-
-    // Centroid qaysi grid katagiga tushadi
-    final centroidGridX = (localCentroid.dx / cellSize).floor();
-    final centroidGridY = (localCentroid.dy / cellSize).floor();
-
-    // Top-left pozitsiyani hisoblash (centroid - centroid offset)
-    int gridX = centroidGridX - centroid.dx.floor();
-    int gridY = centroidGridY - centroid.dy.floor();
+    // To'g'ridan-to'g'ri rounding (Flame kodidagi kabi)
+    final gridX = (localTopLeft.dx / cellSize).round();
+    final gridY = (localTopLeft.dy / cellSize).round();
 
     return Offset(gridX.toDouble(), gridY.toDouble());
   }

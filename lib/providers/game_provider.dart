@@ -110,20 +110,35 @@ class GameState extends ChangeNotifier {
     return nearestPos;
   }
 
-  Offset? findSmartValidPosition(PieceShape piece, int targetX, int targetY) {
+  Offset? findSmartValidPosition(
+    PieceShape piece,
+    int targetX,
+    int targetY, {
+    Offset? direction,
+  }) {
     // 1. Check exact position first
     if (canPlacePiece(piece, targetX, targetY)) {
       return Offset(targetX.toDouble(), targetY.toDouble());
     }
 
-    // 2. Search only cardinal neighbors (up, down, left, right - dist 1)
-    // No diagonals to keep suggestions very tight
-    const List<List<int>> cardinalOffsets = [
+    // 2. Search cardinal neighbors (up, down, left, right - dist 1)
+    List<List<int>> cardinalOffsets = [
       [0, -1], // up
       [0, 1], // down
       [-1, 0], // left
       [1, 0], // right
     ];
+
+    // Agar yo'nalish bo'lsa, o'sha yo'nalishdagilarni oldinga o'tkazamiz
+    if (direction != null && direction.distanceSquared > 0) {
+      cardinalOffsets.sort((a, b) {
+        // Dot product: a.x * dir.x + a.y * dir.y
+        // Katta qiymat = ko'proq moslik
+        double dotA = a[0] * direction.dx + a[1] * direction.dy;
+        double dotB = b[0] * direction.dx + b[1] * direction.dy;
+        return dotB.compareTo(dotA); // Kamayish tartibida
+      });
+    }
 
     for (var offset in cardinalOffsets) {
       int nx = targetX + offset[0];
@@ -134,7 +149,32 @@ class GameState extends ChangeNotifier {
       }
     }
 
-    return null;
+    // 3. Agar 1 katak uzoqlikda joy yo'q bo'lsa, 2 katak radiusda qidirish
+    Offset? bestPos;
+    double minDistSq = double.infinity;
+    const int maxRadius = 2;
+
+    for (int dy = -maxRadius; dy <= maxRadius; dy++) {
+      for (int dx = -maxRadius; dx <= maxRadius; dx++) {
+        if (dx == 0 && dy == 0) continue; // Already checked
+        if (dx.abs() <= 1 && dy.abs() <= 1 && (dx == 0 || dy == 0))
+          continue; // Already checked cardinals
+
+        int nx = targetX + dx;
+        int ny = targetY + dy;
+
+        if (canPlacePiece(piece, nx, ny)) {
+          double distSq = (dx * dx + dy * dy).toDouble();
+
+          if (distSq < minDistSq) {
+            minDistSq = distSq;
+            bestPos = Offset(nx.toDouble(), ny.toDouble());
+          }
+        }
+      }
+    }
+
+    return bestPos;
   }
 
   Set<Point<int>> getPotentialClears(PieceShape piece, int gridX, int gridY) {
@@ -351,5 +391,87 @@ class GameState extends ChangeNotifier {
     _smartGenerator.reset();
     _generateNewPieces();
     notifyListeners();
+  }
+
+  void restartGame() {
+    score = 0;
+    combo = 0;
+    isGameOver = false;
+    clearingCells.clear();
+    isClearing = false;
+    availablePieces = [null, null, null];
+    _initializeGrid();
+    _generateNewPieces();
+    notifyListeners();
+  }
+
+  // --- Game State Persistence ---
+
+  Future<void> saveGame() async {
+    if (isGameOver) {
+      debugPrint('GameState: Game over, skipping save.');
+      return;
+    }
+
+    debugPrint('GameState: Saving game...');
+    final gridData = grid
+        .map((row) => row.map((cell) => cell.toJson()).toList())
+        .toList();
+
+    final piecesData = availablePieces.map((p) => p?.name).toList();
+
+    final state = {
+      'score': score,
+      'combo': combo,
+      'grid': gridData,
+      'pieces': piecesData,
+    };
+
+    await LocalStorageService.saveGameState(state);
+    debugPrint('GameState: Game saved successfully.');
+  }
+
+  bool loadGame() {
+    debugPrint('GameState: Loading game...');
+    final state = LocalStorageService.getGameState();
+    if (state == null) {
+      debugPrint('GameState: No saved game found.');
+      return false;
+    }
+
+    try {
+      score = state['score'] as int;
+      combo = state['combo'] as int;
+
+      // Restore Grid
+      final gridData = state['grid'] as List;
+      grid = gridData.map((row) {
+        return (row as List).map((cell) {
+          return GridCell.fromJson(Map<String, dynamic>.from(cell));
+        }).toList();
+      }).toList();
+
+      // Restore Pieces
+      final piecesData = state['pieces'] as List;
+      availablePieces = piecesData.map((name) {
+        if (name == null) return null;
+        return _allShapes.firstWhere(
+          (s) => s.name == name,
+          orElse: () => _allShapes[0], // Fallback
+        );
+      }).toList();
+
+      notifyListeners();
+      debugPrint('GameState: Game loaded successfully.');
+      return true;
+    } catch (e) {
+      debugPrint('GameState: Error loading game: $e');
+      return false;
+    }
+  }
+
+  Future<void> clearSavedGame() async {
+    debugPrint('GameState: Clearing saved game...');
+    await LocalStorageService.clearGameState();
   }
 }

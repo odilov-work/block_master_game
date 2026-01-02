@@ -1,14 +1,10 @@
 import 'package:block_master_game/providers/game_provider.dart';
 // O'zingizdagi fayl
-import 'package:block_master_game/screens/game_screen.dart';
+import 'package:block_master_game/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
-
-// ============================================================================
-// MAIN APP
-// ============================================================================
 
 import 'package:block_master_game/services/local_storage_service.dart';
 import 'package:block_master_game/services/audio_service.dart';
@@ -49,7 +45,7 @@ class BlockPuzzleApp extends StatelessWidget {
             ),
             useMaterial3: true,
           ),
-          home: const GameScreen(),
+          home: const HomeScreen(),
         ),
       ),
     );

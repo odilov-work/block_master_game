@@ -29,4 +29,24 @@ class LocalStorageService {
   static Future<void> saveSoundEnabled(bool enabled) async {
     await _box.put(_soundEnabledKey, enabled);
   }
+
+  // Game State Persistence
+  static const String _gameStateKey = 'saved_game_state';
+
+  static Future<void> saveGameState(Map<String, dynamic> state) async {
+    await _box.put(_gameStateKey, state);
+  }
+
+  static Map<String, dynamic>? getGameState() {
+    final data = _box.get(_gameStateKey);
+    if (data != null) {
+      // Hive returns LinkedMap, convert to Map<String, dynamic>
+      return Map<String, dynamic>.from(data);
+    }
+    return null;
+  }
+
+  static Future<void> clearGameState() async {
+    await _box.delete(_gameStateKey);
+  }
 }
