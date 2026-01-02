@@ -69,13 +69,20 @@ class _GameGridState extends State<GameGrid>
       Offset? rawSnappedPos;
 
       if (gridPos != null) {
-        // Strict check - faqat aniq hisoblangan joyga sig'adimi?
+        // 1. Strict check - faqat aniq hisoblangan joyga sig'adimi?
         if (widget.gameState.canPlacePiece(
           widget.draggingPiece!,
           gridPos.dx.toInt(),
           gridPos.dy.toInt(),
         )) {
           rawSnappedPos = gridPos;
+        } else {
+          // 2. Fallback - agar aniq joyga sig'masa, eng yaqin bo'sh joyni topamiz
+          rawSnappedPos = widget.gameState.findNearestValidPosition(
+            widget.draggingPiece!,
+            gridPos.dx.toInt(),
+            gridPos.dy.toInt(),
+          );
         }
       }
 
@@ -149,6 +156,15 @@ class _GameGridState extends State<GameGrid>
     final topLeftY = globalPosition.dy - pieceHeight - 50.h;
 
     final localTopLeft = box.globalToLocal(Offset(topLeftX, topLeftY));
+
+    // Bounds check: Agar shakl grid tashqarisiga chiqib ketsa (ayniqsa pastga), snap qilmaymiz
+    // Bu o'yinchiga yurishni bekor qilish imkonini beradi
+    if (localTopLeft.dx < -cellSize ||
+        localTopLeft.dx > box.size.width ||
+        localTopLeft.dy < -cellSize ||
+        localTopLeft.dy > box.size.height) {
+      return null;
+    }
 
     // To'g'ridan-to'g'ri rounding (Flame kodidagi kabi)
     final gridX = (localTopLeft.dx / cellSize).round();

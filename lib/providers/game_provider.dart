@@ -110,65 +110,28 @@ class GameState extends ChangeNotifier {
     return nearestPos;
   }
 
-  Offset? findSmartValidPosition(
-    PieceShape piece,
-    int targetX,
-    int targetY, {
-    Offset? direction,
-  }) {
-    // 1. Check exact position first
+  Offset? findNearestValidPosition(PieceShape piece, int targetX, int targetY) {
+    // 1. Check strict position first (optimization)
     if (canPlacePiece(piece, targetX, targetY)) {
       return Offset(targetX.toDouble(), targetY.toDouble());
     }
 
-    // 2. Search cardinal neighbors (up, down, left, right - dist 1)
-    List<List<int>> cardinalOffsets = [
-      [0, -1], // up
-      [0, 1], // down
-      [-1, 0], // left
-      [1, 0], // right
-    ];
-
-    // Agar yo'nalish bo'lsa, o'sha yo'nalishdagilarni oldinga o'tkazamiz
-    if (direction != null && direction.distanceSquared > 0) {
-      cardinalOffsets.sort((a, b) {
-        // Dot product: a.x * dir.x + a.y * dir.y
-        // Katta qiymat = ko'proq moslik
-        double dotA = a[0] * direction.dx + a[1] * direction.dy;
-        double dotB = b[0] * direction.dx + b[1] * direction.dy;
-        return dotB.compareTo(dotA); // Kamayish tartibida
-      });
-    }
-
-    for (var offset in cardinalOffsets) {
-      int nx = targetX + offset[0];
-      int ny = targetY + offset[1];
-
-      if (canPlacePiece(piece, nx, ny)) {
-        return Offset(nx.toDouble(), ny.toDouble());
-      }
-    }
-
-    // 3. Agar 1 katak uzoqlikda joy yo'q bo'lsa, 2 katak radiusda qidirish
     Offset? bestPos;
-    double minDistSq = double.infinity;
-    const int maxRadius = 2;
+    double minDistanceSq = double.infinity;
 
-    for (int dy = -maxRadius; dy <= maxRadius; dy++) {
-      for (int dx = -maxRadius; dx <= maxRadius; dx++) {
-        if (dx == 0 && dy == 0) continue; // Already checked
-        if (dx.abs() <= 1 && dy.abs() <= 1 && (dx == 0 || dy == 0))
-          continue; // Already checked cardinals
+    // Grid bo'ylab barcha mumkin bo'lgan joylarni tekshiramiz
+    // Grid kichkina (8x8 yoki 10x10) bo'lgani uchun bu juda tez ishlaydi
+    for (int y = 0; y < GameConstants.gridSize; y++) {
+      for (int x = 0; x < GameConstants.gridSize; x++) {
+        if (canPlacePiece(piece, x, y)) {
+          // Masofani hisoblash (Euclidean distance squared)
+          double dx = (x - targetX).toDouble();
+          double dy = (y - targetY).toDouble();
+          double distSq = dx * dx + dy * dy;
 
-        int nx = targetX + dx;
-        int ny = targetY + dy;
-
-        if (canPlacePiece(piece, nx, ny)) {
-          double distSq = (dx * dx + dy * dy).toDouble();
-
-          if (distSq < minDistSq) {
-            minDistSq = distSq;
-            bestPos = Offset(nx.toDouble(), ny.toDouble());
+          if (distSq < minDistanceSq) {
+            minDistanceSq = distSq;
+            bestPos = Offset(x.toDouble(), y.toDouble());
           }
         }
       }
