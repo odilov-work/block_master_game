@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:block_master_game/providers/game_provider.dart';
 import 'package:block_master_game/piece_generator.dart';
 import 'package:block_master_game/widgets/background_painter.dart';
@@ -8,6 +9,9 @@ import 'package:block_master_game/widgets/piece_selector.dart';
 import 'package:block_master_game/widgets/score_board.dart';
 import 'package:block_master_game/widgets/game_menu_dialog.dart';
 import 'package:block_master_game/screens/home_screen.dart';
+import 'package:block_master_game/widgets/game_over_overlay.dart';
+import 'package:block_master_game/services/move_analysis_service.dart';
+import 'package:block_master_game/services/local_storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -20,29 +24,96 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
+class _GameScreenState extends State<GameScreen>
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   int? draggingPieceIndex;
   Offset? dragPosition;
   Offset? gridHoverPosition;
   Offset? snappedPosition;
   bool canPlace = false;
   late GameState gameState;
+  bool _showOverlay = false;
+  Timer? _gameOverTimer;
+
+  // Move Analysis Feedback State
+  late AnimationController _feedbackController;
+  Timer? _feedbackTimer;
+  MoveAnalysisResult? _currentFeedback;
+  MoveAnalysisResult? _lastSeenAnalysis;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
+    _feedbackController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+
     // O'yin boshlanganda saqlangan o'yinni yuklashga urinib ko'ramiz
     WidgetsBinding.instance.addPostFrameCallback((_) {
       gameState = context.read<GameState>();
-      debugPrint('GameScreen: Attempting to load game...');
       if (!gameState.loadGame()) {
-        debugPrint('GameScreen: No saved game found, restarting...');
         // Agar saqlangan o'yin bo'lmasa yoki yuklashda xatolik bo'lsa, yangi o'yin
         gameState.restartGame();
-      } else {
-        debugPrint('GameScreen: Game loaded successfully!');
+      }
+    });
+
+    // Listen for Game Over state changes
+    gameState = context.read<GameState>();
+    gameState.addListener(_onGameStateChanged);
+  }
+
+  void _onGameStateChanged() {
+    if (gameState.isGameOver && !_showOverlay && _gameOverTimer == null) {
+      // Game Over detected, start 3s timer
+      _gameOverTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() {
+            _showOverlay = true;
+          });
+        }
+      });
+    } else if (!gameState.isGameOver) {
+      // Game restarted
+      _gameOverTimer?.cancel();
+      _gameOverTimer = null;
+      if (_showOverlay) {
+        setState(() {
+          _showOverlay = false;
+        });
+      }
+    }
+
+    // Check for new move analysis
+    if (gameState.lastMoveAnalysis != _lastSeenAnalysis) {
+      _lastSeenAnalysis = gameState.lastMoveAnalysis;
+
+      // Check if tips are enabled
+      bool tipsEnabled = LocalStorageService.getMoveAnalysisEnabled();
+
+      if (tipsEnabled &&
+          _lastSeenAnalysis != null &&
+          _lastSeenAnalysis!.quality != MoveQuality.neutral) {
+        _showFeedback(_lastSeenAnalysis!);
+      }
+    }
+  }
+
+  void _showFeedback(MoveAnalysisResult result) {
+    _feedbackTimer?.cancel();
+    _feedbackController.reset();
+
+    setState(() {
+      _currentFeedback = result;
+    });
+
+    _feedbackController.forward();
+
+    _feedbackTimer = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        _feedbackController.reverse();
       }
     });
   }
@@ -51,8 +122,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     // O'yin yopilganda saqlash
-    debugPrint('GameScreen: Disposing, saving game...');
     gameState.saveGame();
+    gameState.removeListener(_onGameStateChanged);
+    _gameOverTimer?.cancel();
+    _feedbackTimer?.cancel();
+    _feedbackController.dispose();
     super.dispose();
   }
 
@@ -60,12 +134,12 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
-      debugPrint('GameScreen: App paused/inactive, saving game...');
       gameState.saveGame();
     }
   }
 
   void _onDragStart(int pieceIndex, Offset globalPosition) {
+    if (gameState.isGameOver) return; // Disable interaction
     HapticFeedback.lightImpact();
     setState(() {
       draggingPieceIndex = pieceIndex;
@@ -121,64 +195,159 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     final gameState = context.watch<GameState>();
     final gridSize = 350.w.clamp(280.0, 400.0);
 
-    if (gameState.isGameOver) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showGameOverDialog();
-      });
-    }
-
     return Scaffold(
       backgroundColor: GameConstants.backgroundColor,
-      body: Padding(
-        padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
-        child: Stack(
-          children: [
-            Positioned.fill(child: CustomPaint(painter: BackgroundPainter())),
-            Column(
+      body: Stack(
+        children: [
+          Padding(
+            padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+            child: Stack(
               children: [
-                SizedBox(height: 16.h),
-                GameHeader(
-                  score: gameState.score,
-                  highScore: gameState.highScore,
-                  combo: gameState.combo,
-                  onMenuPressed: _showMenuDialog,
+                Positioned.fill(
+                  child: CustomPaint(painter: BackgroundPainter()),
                 ),
-                const Spacer(),
-                Center(
-                  child: GameGrid(
-                    grid: gameState.grid,
-                    gridSize: gridSize,
-                    draggingPiece: draggingPieceIndex != null
-                        ? gameState.availablePieces[draggingPieceIndex!]
-                        : null,
-                    dragPosition: dragPosition,
-                    onGridHover: _updateGridHover,
-                    gameState: gameState,
-                  ),
+                Column(
+                  children: [
+                    SizedBox(height: 16.h),
+                    GameHeader(
+                      score: gameState.score,
+                      highScore: gameState.highScore,
+                      combo: gameState.combo,
+                      onMenuPressed: _showMenuDialog,
+                    ),
+                    const Spacer(),
+                    Center(
+                      child: GameGrid(
+                        grid: gameState.grid,
+                        gridSize: gridSize,
+                        draggingPiece: draggingPieceIndex != null
+                            ? gameState.availablePieces[draggingPieceIndex!]
+                            : null,
+                        dragPosition: dragPosition,
+                        onGridHover: _updateGridHover,
+                        gameState: gameState,
+                      ),
+                    ),
+                    const Spacer(),
+                    PieceSelector(
+                      pieces: gameState.availablePieces,
+                      onDragStart: _onDragStart,
+                      onDragUpdate: _onDragUpdate,
+                      onDragEnd: _onDragEnd,
+                      draggingIndex: draggingPieceIndex,
+                    ),
+                    SizedBox(height: 40.h),
+                  ],
                 ),
-                const Spacer(),
-                PieceSelector(
-                  pieces: gameState.availablePieces,
-                  onDragStart: _onDragStart,
-                  onDragUpdate: _onDragUpdate,
-                  onDragEnd: _onDragEnd,
-                  draggingIndex: draggingPieceIndex,
-                ),
-                SizedBox(height: 40.h),
               ],
             ),
-            if (draggingPieceIndex != null && dragPosition != null)
-              _buildDraggingPiece(),
-          ],
-        ),
+          ),
+
+          // Dragging Piece (Floating above UI)
+          if (draggingPieceIndex != null && dragPosition != null)
+            _buildDraggingPiece(),
+
+          // Game Over Overlay (Topmost)
+          if (_showOverlay)
+            GameOverOverlay(
+              score: gameState.score,
+              highScore: gameState.highScore,
+              onRestart: () {
+                gameState.restartGame();
+              },
+              onHome: () {
+                Navigator.of(context).pop();
+              },
+            ),
+
+          // Move Analysis Feedback
+          if (_currentFeedback != null) _buildMoveFeedback(_currentFeedback!),
+        ],
       ),
     );
   }
 
-  void _showGameOverDialog() {
-    // O'yin tugaganda saqlangan o'yinni o'chirish
-    gameState.clearSavedGame();
-    // ... dialog logic (hozircha bo'sh)
+  Widget _buildMoveFeedback(MoveAnalysisResult result) {
+    Color color;
+    IconData icon;
+
+    switch (result.quality) {
+      case MoveQuality.best:
+        color = const Color(0xFF00FFFF); // Cyan
+        icon = Icons.star_rounded;
+        break;
+      case MoveQuality.good:
+        color = const Color(0xFF00FF00); // Green
+        icon = Icons.thumb_up_rounded;
+        break;
+      case MoveQuality.neutral:
+        return const SizedBox(); // Don't show anything for neutral moves
+      case MoveQuality.bad:
+        color = const Color(0xFFFFAA00); // Orange
+        icon = Icons.warning_rounded;
+        break;
+      case MoveQuality.blunder:
+        color = const Color(0xFFFF0055); // Red
+        icon = Icons.error_outline_rounded;
+        break;
+    }
+
+    return Positioned(
+      top: 100.h,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: AnimatedBuilder(
+          animation: _feedbackController,
+          builder: (context, child) {
+            final value = CurvedAnimation(
+              parent: _feedbackController,
+              curve: Curves.elasticOut,
+            ).value;
+
+            return Transform.scale(
+              scale: value,
+              child: Opacity(
+                opacity: value.clamp(0.0, 1.0),
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 8.h,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacityX(0.8),
+                    borderRadius: BorderRadius.circular(20.r),
+                    border: Border.all(color: color, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withOpacityX(0.4),
+                        blurRadius: 15,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, color: color, size: 20.sp),
+                      SizedBox(width: 8.w),
+                      Text(
+                        result.message,
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16.sp,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   void _showMenuDialog() {

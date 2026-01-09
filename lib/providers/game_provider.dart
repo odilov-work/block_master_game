@@ -4,6 +4,7 @@ import 'package:block_master_game/piece_generator.dart';
 
 import 'package:block_master_game/services/audio_service.dart';
 import 'package:block_master_game/services/local_storage_service.dart';
+import 'package:block_master_game/services/move_analysis_service.dart';
 
 class GameState extends ChangeNotifier {
   late List<List<GridCell>> grid;
@@ -18,13 +19,15 @@ class GameState extends ChangeNotifier {
 
   final List<PieceShape> _allShapes = PieceShapes.getAllShapes();
   late SmartPieceGenerator _smartGenerator;
+  final SmartMoveAnalysisService _analysisService = SmartMoveAnalysisService();
+  MoveAnalysisResult? lastMoveAnalysis;
 
   GameState() {
     _smartGenerator = SmartPieceGenerator(
-      challengeAfterHelpful: 4, // More helpful pieces before challenge (was 2)
-      baseChallengeChance: 0.05, // Less random hard pieces (was 0.15)
-      criticalThreshold: 0.85, // Critical mode triggers later (was 0.75)
-      rewardAfterLines: 2, // Get helpful pieces sooner (was 3)
+      challengeAfterHelpful: 3, // Qiyinroq shakllar tezroq keladi
+      baseChallengeChance: 0.12, // Ko'proq qiyin shakllar
+      criticalThreshold: 0.78, // Critical mode tezroq ishga tushadi
+      rewardAfterLines: 3, // Mukofot shakllar kamroq
     );
     _initializeGrid();
     _loadHighScore();
@@ -206,6 +209,15 @@ class GameState extends ChangeNotifier {
 
     if (!canPlacePiece(piece, gridX, gridY)) return false;
 
+    // Clone grid for analysis BEFORE move
+    List<List<GridCell>> oldGrid = List.generate(
+      GameConstants.gridSize,
+      (y) => List.generate(
+        GameConstants.gridSize,
+        (x) => GridCell(occupied: grid[y][x].occupied, color: grid[y][x].color),
+      ),
+    );
+
     // Place
     for (var cell in piece.cells) {
       int x = gridX + cell.dx.toInt();
@@ -263,7 +275,16 @@ class GameState extends ChangeNotifier {
       GameAudioService.playPlace();
       _checkGameOver();
     }
+
+    // Analyze Move
+    lastMoveAnalysis = _analysisService.analyzeMove(
+      oldGrid: oldGrid,
+      newGrid: grid,
+      linesCleared: linesCleared,
+    );
+
     notifyListeners();
+    saveGame(); // Save state after every move
 
     return true;
   }
@@ -334,6 +355,7 @@ class GameState extends ChangeNotifier {
     GameAudioService.playClear();
     _checkGameOver();
     notifyListeners();
+    saveGame(); // Save state after clearing lines
   }
 
   void _checkGameOver() {
@@ -351,7 +373,18 @@ class GameState extends ChangeNotifier {
 
     if (availablePieces.any((p) => p != null)) {
       isGameOver = true;
+
+      // O'yin tugaganda darhol saqlangan o'yin holatini tozalash
+      clearSavedGame();
+
+      // Rekordni yangilash (agar yangi rekord bo'lsa)
+      if (score > highScore) {
+        highScore = score;
+        LocalStorageService.saveHighScore(highScore);
+      }
+
       GameAudioService.playGameOver();
+      notifyListeners(); // Home screen yangilanishi uchun
     }
   }
 
@@ -364,6 +397,7 @@ class GameState extends ChangeNotifier {
     _smartGenerator.reset();
     _generateNewPieces();
     notifyListeners();
+    saveGame(); // Save new game state
   }
 
   void restartGame() {
@@ -376,6 +410,7 @@ class GameState extends ChangeNotifier {
     _initializeGrid();
     _generateNewPieces();
     notifyListeners();
+    saveGame(); // Save new game state
   }
 
   // --- Game State Persistence ---

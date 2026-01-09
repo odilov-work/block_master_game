@@ -30,6 +30,17 @@ class LocalStorageService {
     await _box.put(_soundEnabledKey, enabled);
   }
 
+  // Move Analysis Status
+  static const String _moveAnalysisEnabledKey = 'move_analysis_enabled';
+
+  static bool getMoveAnalysisEnabled() {
+    return _box.get(_moveAnalysisEnabledKey, defaultValue: false);
+  }
+
+  static Future<void> saveMoveAnalysisEnabled(bool enabled) async {
+    await _box.put(_moveAnalysisEnabledKey, enabled);
+  }
+
   // Game State Persistence
   static const String _gameStateKey = 'saved_game_state';
 

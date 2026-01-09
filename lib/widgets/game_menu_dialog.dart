@@ -22,11 +22,13 @@ class GameMenuDialog extends StatefulWidget {
 
 class _GameMenuDialogState extends State<GameMenuDialog> {
   bool _soundEnabled = true;
+  bool _tipsEnabled = false;
 
   @override
   void initState() {
     super.initState();
     _soundEnabled = LocalStorageService.getSoundEnabled();
+    _tipsEnabled = LocalStorageService.getMoveAnalysisEnabled();
   }
 
   void _toggleSound() {
@@ -34,6 +36,14 @@ class _GameMenuDialogState extends State<GameMenuDialog> {
     setState(() {
       _soundEnabled = !_soundEnabled;
       LocalStorageService.saveSoundEnabled(_soundEnabled);
+    });
+  }
+
+  void _toggleTips() {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _tipsEnabled = !_tipsEnabled;
+      LocalStorageService.saveMoveAnalysisEnabled(_tipsEnabled);
     });
   }
 
@@ -78,6 +88,18 @@ class _GameMenuDialogState extends State<GameMenuDialog> {
               onTap: _toggleSound,
               isToggle: true,
               isActive: _soundEnabled,
+            ),
+            SizedBox(height: 16.h),
+
+            // Move Tips Toggle
+            _buildMenuOption(
+              icon: _tipsEnabled
+                  ? Icons.lightbulb_rounded
+                  : Icons.lightbulb_outline_rounded,
+              label: 'TIPS',
+              onTap: _toggleTips,
+              isToggle: true,
+              isActive: _tipsEnabled,
             ),
             SizedBox(height: 16.h),
 

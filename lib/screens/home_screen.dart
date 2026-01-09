@@ -48,9 +48,9 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
-  void _startGame() {
+  void _startGame() async {
     HapticFeedback.mediumImpact();
-    Navigator.of(context).push(
+    await Navigator.of(context).push(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
             const GameScreen(),
@@ -60,6 +60,10 @@ class _HomeScreenState extends State<HomeScreen>
         transitionDuration: const Duration(milliseconds: 400),
       ),
     );
+    // O'yindan qaytganda high score ni yangilash
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override

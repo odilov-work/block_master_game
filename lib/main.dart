@@ -1,6 +1,7 @@
 import 'package:block_master_game/providers/game_provider.dart';
 // O'zingizdagi fayl
 import 'package:block_master_game/screens/home_screen.dart';
+import 'package:flame/flame.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -11,6 +12,8 @@ import 'package:block_master_game/services/audio_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Flame.device.fullScreen();
+  await Flame.device.setPortrait();
   await LocalStorageService.init();
   await GameAudioService.init();
 

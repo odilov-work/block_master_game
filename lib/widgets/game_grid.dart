@@ -7,6 +7,8 @@ import 'package:block_master_game/piece_generator.dart';
 import 'package:block_master_game/providers/game_provider.dart';
 import 'package:block_master_game/widgets/grid_painter.dart';
 
+enum ClearAnimationType { fade, scale, explosion }
+
 class GameGrid extends StatefulWidget {
   final List<List<GridCell>> grid;
   final double gridSize;
@@ -34,6 +36,7 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
   late AnimationController _clearAnimationController;
   late Animation<double> _clearAnimation;
   late AnimationController _shakeController;
+  ClearAnimationType _currentAnimationType = ClearAnimationType.fade;
 
   Timer? _debounceTimer;
   Offset? _displayedSnappedPos;
@@ -69,6 +72,10 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
     if (widget.gameState.isClearing &&
         widget.gameState.clearingCells.isNotEmpty) {
       if (!_clearAnimationController.isAnimating) {
+        // Randomly select animation type
+        final types = ClearAnimationType.values;
+        _currentAnimationType = types[Random().nextInt(types.length)];
+
         _clearAnimationController.forward(from: 0);
       }
       if (!_shakeController.isAnimating) {
@@ -104,7 +111,7 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
         _pendingSnappedPos = rawSnappedPos;
         _debounceTimer?.cancel();
 
-        _debounceTimer = Timer(const Duration(milliseconds: 100), () {
+        _debounceTimer = Timer(const Duration(milliseconds: 150), () {
           if (mounted) {
             setState(() {
               _displayedSnappedPos = rawSnappedPos;
@@ -166,16 +173,16 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
     final pieceHeight = piece.height * cellSize;
 
     final topLeftX = globalPosition.dx - pieceWidth / 2;
-    final topLeftY = globalPosition.dy - pieceHeight - 50.h;
+    final topLeftY = globalPosition.dy - pieceHeight - 100.h;
 
     final localTopLeft = box.globalToLocal(Offset(topLeftX, topLeftY));
 
-    // Bounds check: Agar shakl grid tashqarisiga chiqib ketsa (ayniqsa pastga), snap qilmaymiz
-    // Bu o'yinchiga yurishni bekor qilish imkonini beradi
-    if (localTopLeft.dx < -cellSize ||
-        localTopLeft.dx > box.size.width ||
-        localTopLeft.dy < -cellSize ||
-        localTopLeft.dy > box.size.height) {
+    // Bounds check: Agar shakl qisman ham grid ustida bo'lsa, preview ko'rsatish
+    // Faqat butunlay grid tashqarisida bo'lsa, taklif berilmaydi
+    if (localTopLeft.dx + pieceWidth <= 0 ||
+        localTopLeft.dx >= box.size.width ||
+        localTopLeft.dy + pieceHeight <= 0 ||
+        localTopLeft.dy >= box.size.height) {
       return null;
     }
 
@@ -259,6 +266,7 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
               previewRows: previewRows,
               previewCols: previewCols,
               previewColor: widget.draggingPiece?.color,
+              animationType: _currentAnimationType,
             ),
           ),
         ),
