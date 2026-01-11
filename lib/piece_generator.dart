@@ -44,6 +44,18 @@ class GridCell {
     occupied = true;
     color = c;
   }
+
+  Map<String, dynamic> toJson() {
+    // ignore: deprecated_member_use
+    return {'occupied': occupied, 'color': color?.value};
+  }
+
+  factory GridCell.fromJson(Map<String, dynamic> json) {
+    return GridCell(
+      occupied: json['occupied'] ?? false,
+      color: json['color'] != null ? Color(json['color']) : null,
+    );
+  }
 }
 
 // ============================================================================
@@ -313,6 +325,30 @@ class PieceShapes {
         ],
         color: GameConstants.pieceColors[0],
       ),
+      PieceShape(
+        name: 'corner2',
+        shape: [
+          [0, 1],
+          [1, 1],
+        ],
+        color: GameConstants.pieceColors[6],
+      ),
+      PieceShape(
+        name: 'corner3',
+        shape: [
+          [1, 0],
+          [1, 1],
+        ],
+        color: GameConstants.pieceColors[4],
+      ),
+      PieceShape(
+        name: 'corner4',
+        shape: [
+          [1, 1],
+          [0, 1],
+        ],
+        color: GameConstants.pieceColors[4],
+      ),
       // Big L
       PieceShape(
         name: 'bigL',
@@ -322,16 +358,6 @@ class PieceShapes {
           [1, 1, 1],
         ],
         color: GameConstants.pieceColors[1],
-      ),
-      // Plus shape
-      PieceShape(
-        name: 'plus',
-        shape: [
-          [0, 1, 0],
-          [1, 1, 1],
-          [0, 1, 0],
-        ],
-        color: GameConstants.pieceColors[2],
       ),
     ];
   }
@@ -673,8 +699,7 @@ class SmartPieceGenerator {
     // Noqulay shakllar
     challenging.addAll(
       allShapes.where(
-        (s) =>
-            ['L', 'reverseL', 'T', 'S', 'Z', 'bigL', 'plus'].contains(s.name),
+        (s) => ['L', 'reverseL', 'T', 'S', 'Z', 'bigL'].contains(s.name),
       ),
     );
 

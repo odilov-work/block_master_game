@@ -29,4 +29,46 @@ class LocalStorageService {
   static Future<void> saveSoundEnabled(bool enabled) async {
     await _box.put(_soundEnabledKey, enabled);
   }
+
+  // Move Analysis Status
+  static const String _moveAnalysisEnabledKey = 'move_analysis_enabled';
+
+  static bool getMoveAnalysisEnabled() {
+    return _box.get(_moveAnalysisEnabledKey, defaultValue: true);
+  }
+
+  static Future<void> saveMoveAnalysisEnabled(bool enabled) async {
+    await _box.put(_moveAnalysisEnabledKey, enabled);
+  }
+
+  // Game State Persistence
+  static const String _gameStateKey = 'saved_game_state';
+
+  static Future<void> saveGameState(Map<String, dynamic> state) async {
+    await _box.put(_gameStateKey, state);
+  }
+
+  static Map<String, dynamic>? getGameState() {
+    final data = _box.get(_gameStateKey);
+    if (data != null) {
+      // Hive returns LinkedMap, convert to Map<String, dynamic>
+      return Map<String, dynamic>.from(data);
+    }
+    return null;
+  }
+
+  static Future<void> clearGameState() async {
+    await _box.delete(_gameStateKey);
+  }
+
+  // Block Style
+  static const String _blockStyleKey = 'block_style';
+
+  static int getBlockStyleIndex() {
+    return _box.get(_blockStyleKey, defaultValue: 0);
+  }
+
+  static Future<void> saveBlockStyleIndex(int index) async {
+    await _box.put(_blockStyleKey, index);
+  }
 }

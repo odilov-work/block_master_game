@@ -4,6 +4,8 @@ import 'package:block_master_game/piece_generator.dart';
 
 import 'package:block_master_game/services/audio_service.dart';
 import 'package:block_master_game/services/local_storage_service.dart';
+import 'package:block_master_game/services/move_analysis_service.dart';
+import 'package:block_master_game/styles/block_style.dart';
 
 class GameState extends ChangeNotifier {
   late List<List<GridCell>> grid;
@@ -18,16 +20,35 @@ class GameState extends ChangeNotifier {
 
   final List<PieceShape> _allShapes = PieceShapes.getAllShapes();
   late SmartPieceGenerator _smartGenerator;
+  final SmartMoveAnalysisService _analysisService = SmartMoveAnalysisService();
+  MoveAnalysisResult? lastMoveAnalysis;
+
+  // Block Style
+  BlockStyle _blockStyle = BlockStyle.neon;
+  BlockStyle get blockStyle => _blockStyle;
+
+  void setBlockStyle(BlockStyle style) {
+    _blockStyle = style;
+    LocalStorageService.saveBlockStyleIndex(style.index);
+    notifyListeners();
+  }
+
+  void _loadBlockStyle() {
+    final index = LocalStorageService.getBlockStyleIndex();
+    _blockStyle =
+        BlockStyle.values[index.clamp(0, BlockStyle.values.length - 1)];
+  }
 
   GameState() {
     _smartGenerator = SmartPieceGenerator(
-      challengeAfterHelpful: 2,
-      baseChallengeChance: 0.15,
-      criticalThreshold: 0.75,
-      rewardAfterLines: 3,
+      challengeAfterHelpful: 3, // Qiyinroq shakllar tezroq keladi
+      baseChallengeChance: 0.12, // Ko'proq qiyin shakllar
+      criticalThreshold: 0.78, // Critical mode tezroq ishga tushadi
+      rewardAfterLines: 3, // Mukofot shakllar kamroq
     );
     _initializeGrid();
     _loadHighScore();
+    _loadBlockStyle();
     _generateNewPieces();
   }
 
@@ -110,31 +131,34 @@ class GameState extends ChangeNotifier {
     return nearestPos;
   }
 
-  Offset? findSmartValidPosition(PieceShape piece, int targetX, int targetY) {
-    // 1. Check exact position first
+  Offset? findNearestValidPosition(PieceShape piece, int targetX, int targetY) {
+    // 1. Check strict position first (optimization)
     if (canPlacePiece(piece, targetX, targetY)) {
       return Offset(targetX.toDouble(), targetY.toDouble());
     }
 
-    // 2. Search only cardinal neighbors (up, down, left, right - dist 1)
-    // No diagonals to keep suggestions very tight
-    const List<List<int>> cardinalOffsets = [
-      [0, -1], // up
-      [0, 1], // down
-      [-1, 0], // left
-      [1, 0], // right
-    ];
+    Offset? bestPos;
+    double minDistanceSq = double.infinity;
 
-    for (var offset in cardinalOffsets) {
-      int nx = targetX + offset[0];
-      int ny = targetY + offset[1];
+    // Grid bo'ylab barcha mumkin bo'lgan joylarni tekshiramiz
+    // Grid kichkina (8x8 yoki 10x10) bo'lgani uchun bu juda tez ishlaydi
+    for (int y = 0; y < GameConstants.gridSize; y++) {
+      for (int x = 0; x < GameConstants.gridSize; x++) {
+        if (canPlacePiece(piece, x, y)) {
+          // Masofani hisoblash (Euclidean distance squared)
+          double dx = (x - targetX).toDouble();
+          double dy = (y - targetY).toDouble();
+          double distSq = dx * dx + dy * dy;
 
-      if (canPlacePiece(piece, nx, ny)) {
-        return Offset(nx.toDouble(), ny.toDouble());
+          if (distSq < minDistanceSq) {
+            minDistanceSq = distSq;
+            bestPos = Offset(x.toDouble(), y.toDouble());
+          }
+        }
       }
     }
 
-    return null;
+    return bestPos;
   }
 
   Set<Point<int>> getPotentialClears(PieceShape piece, int gridX, int gridY) {
@@ -203,6 +227,15 @@ class GameState extends ChangeNotifier {
 
     if (!canPlacePiece(piece, gridX, gridY)) return false;
 
+    // Clone grid for analysis BEFORE move
+    List<List<GridCell>> oldGrid = List.generate(
+      GameConstants.gridSize,
+      (y) => List.generate(
+        GameConstants.gridSize,
+        (x) => GridCell(occupied: grid[y][x].occupied, color: grid[y][x].color),
+      ),
+    );
+
     // Place
     for (var cell in piece.cells) {
       int x = gridX + cell.dx.toInt();
@@ -231,7 +264,17 @@ class GameState extends ChangeNotifier {
       // We can use the `clearingCells` set which is populated in _clearCompleteLines before this.
       int totalClearedCells = clearingCells.length;
 
-      int multiplier = linesCleared * 2;
+      int multiplier = 1;
+      if (linesCleared == 1) {
+        multiplier = 2;
+      } else if (linesCleared == 2) {
+        multiplier = 4;
+      } else if (linesCleared == 3) {
+        multiplier = 10;
+      } else if (linesCleared >= 4) {
+        multiplier = 20;
+      }
+
       score += totalClearedCells * multiplier;
 
       // GameAudioService.playClear(); // This is handled in _performClear after delay
@@ -250,7 +293,16 @@ class GameState extends ChangeNotifier {
       GameAudioService.playPlace();
       _checkGameOver();
     }
+
+    // Analyze Move
+    lastMoveAnalysis = _analysisService.analyzeMove(
+      oldGrid: oldGrid,
+      newGrid: grid,
+      linesCleared: linesCleared,
+    );
+
     notifyListeners();
+    saveGame(); // Save state after every move
 
     return true;
   }
@@ -321,6 +373,7 @@ class GameState extends ChangeNotifier {
     GameAudioService.playClear();
     _checkGameOver();
     notifyListeners();
+    saveGame(); // Save state after clearing lines
   }
 
   void _checkGameOver() {
@@ -338,7 +391,18 @@ class GameState extends ChangeNotifier {
 
     if (availablePieces.any((p) => p != null)) {
       isGameOver = true;
+
+      // O'yin tugaganda darhol saqlangan o'yin holatini tozalash
+      clearSavedGame();
+
+      // Rekordni yangilash (agar yangi rekord bo'lsa)
+      if (score > highScore) {
+        highScore = score;
+        LocalStorageService.saveHighScore(highScore);
+      }
+
       GameAudioService.playGameOver();
+      notifyListeners(); // Home screen yangilanishi uchun
     }
   }
 
@@ -351,5 +415,89 @@ class GameState extends ChangeNotifier {
     _smartGenerator.reset();
     _generateNewPieces();
     notifyListeners();
+    saveGame(); // Save new game state
+  }
+
+  void restartGame() {
+    score = 0;
+    combo = 0;
+    isGameOver = false;
+    clearingCells.clear();
+    isClearing = false;
+    availablePieces = [null, null, null];
+    _initializeGrid();
+    _generateNewPieces();
+    notifyListeners();
+    saveGame(); // Save new game state
+  }
+
+  // --- Game State Persistence ---
+
+  Future<void> saveGame() async {
+    if (isGameOver) {
+      debugPrint('GameState: Game over, skipping save.');
+      return;
+    }
+
+    debugPrint('GameState: Saving game...');
+    final gridData = grid
+        .map((row) => row.map((cell) => cell.toJson()).toList())
+        .toList();
+
+    final piecesData = availablePieces.map((p) => p?.name).toList();
+
+    final state = {
+      'score': score,
+      'combo': combo,
+      'grid': gridData,
+      'pieces': piecesData,
+    };
+
+    await LocalStorageService.saveGameState(state);
+    debugPrint('GameState: Game saved successfully.');
+  }
+
+  bool loadGame() {
+    debugPrint('GameState: Loading game...');
+    final state = LocalStorageService.getGameState();
+    if (state == null) {
+      debugPrint('GameState: No saved game found.');
+      return false;
+    }
+
+    try {
+      score = state['score'] as int;
+      combo = state['combo'] as int;
+
+      // Restore Grid
+      final gridData = state['grid'] as List;
+      grid = gridData.map((row) {
+        return (row as List).map((cell) {
+          return GridCell.fromJson(Map<String, dynamic>.from(cell));
+        }).toList();
+      }).toList();
+
+      // Restore Pieces
+      final piecesData = state['pieces'] as List;
+      availablePieces = piecesData.map((name) {
+        if (name == null) return null;
+        return _allShapes.firstWhere(
+          (s) => s.name == name,
+          orElse: () => _allShapes[0], // Fallback
+        );
+      }).toList();
+
+      notifyListeners();
+      debugPrint('GameState: Game loaded successfully.');
+      return true;
+    } catch (e) {
+      debugPrint('GameState: Error loading game: $e');
+      return false;
+    }
+  }
+
+  Future<void> clearSavedGame() async {
+    debugPrint('GameState: Clearing saved game...');
+    await LocalStorageService.clearGameState();
   }
 }
