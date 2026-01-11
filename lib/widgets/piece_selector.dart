@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:block_master_game/piece_generator.dart';
 import 'package:block_master_game/widgets/piece_painter.dart';
+import 'package:block_master_game/styles/block_style.dart';
 
 class PieceSelector extends StatelessWidget {
   final List<PieceShape?> pieces;
@@ -9,6 +10,7 @@ class PieceSelector extends StatelessWidget {
   final Function(Offset) onDragUpdate;
   final VoidCallback onDragEnd;
   final int? draggingIndex;
+  final BlockStyle blockStyle;
 
   const PieceSelector({
     super.key,
@@ -17,6 +19,7 @@ class PieceSelector extends StatelessWidget {
     required this.onDragUpdate,
     required this.onDragEnd,
     this.draggingIndex,
+    this.blockStyle = BlockStyle.neon,
   });
 
   @override
@@ -34,6 +37,7 @@ class PieceSelector extends StatelessWidget {
             onDragUpdate: onDragUpdate,
             onDragEnd: onDragEnd,
             isDragging: draggingIndex == index,
+            blockStyle: blockStyle,
           );
         }),
       ),
@@ -48,6 +52,7 @@ class _PieceSlot extends StatelessWidget {
   final Function(Offset) onDragUpdate;
   final VoidCallback onDragEnd;
   final bool isDragging;
+  final BlockStyle blockStyle;
 
   const _PieceSlot({
     required this.piece,
@@ -56,18 +61,14 @@ class _PieceSlot extends StatelessWidget {
     required this.onDragUpdate,
     required this.onDragEnd,
     required this.isDragging,
+    required this.blockStyle,
   });
 
   @override
   Widget build(BuildContext context) {
-    // 1-O'ZGARISH: Bosish maydoni o'lchamini kattalashtiramiz (masalan 120.0)
-    // Avval kichikroq edi, bu barmoq sig'ishini osonlashtiradi.
     final double slotSize = 120.w;
 
     return GestureDetector(
-      // 2-O'ZGARISH: Bu juda muhim!
-      // Bu foydalanuvchi shaklning aniq chizig'iga emas, balki
-      // atrofidagi bo'sh katakka bossa ham ushlaydi.
       behavior: HitTestBehavior.translucent,
 
       onPanStart: (details) {
@@ -87,8 +88,6 @@ class _PieceSlot extends StatelessWidget {
       child: Container(
         width: slotSize,
         height: slotSize,
-        // 3-O'ZGARISH: Shaffof rang. Ba'zan rangsiz Container
-        // touch hodisalarini o'tkazib yuborishi mumkin.
         color: Colors.transparent,
         child: (piece != null && !isDragging)
             ? Center(child: _buildPiecePreview(piece!))
@@ -98,7 +97,6 @@ class _PieceSlot extends StatelessWidget {
   }
 
   Widget _buildPiecePreview(PieceShape piece) {
-    // Preview o'lchami o'zgarmaydi, faqat konteyner kattalashdi
     final cellSize = 35.w * GameConstants.piecePreviewScale;
     final width = piece.width * cellSize;
     final height = piece.height * cellSize;
@@ -106,7 +104,11 @@ class _PieceSlot extends StatelessWidget {
     return IgnorePointer(
       child: CustomPaint(
         size: Size(width, height),
-        painter: PiecePainter(piece: piece, cellSize: cellSize),
+        painter: PiecePainter(
+          piece: piece,
+          cellSize: cellSize,
+          blockStyle: blockStyle,
+        ),
       ),
     );
   }

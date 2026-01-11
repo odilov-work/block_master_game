@@ -1,10 +1,13 @@
 import 'package:block_master_game/core/extensions.dart';
+import 'package:block_master_game/providers/game_provider.dart';
 import 'package:block_master_game/screens/game_screen.dart';
 import 'package:block_master_game/services/local_storage_service.dart';
 import 'package:block_master_game/widgets/background_painter.dart';
+import 'package:block_master_game/widgets/style_selector_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -48,6 +51,15 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
+  void _openStyleSelector() {
+    HapticFeedback.lightImpact();
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacityX(0.7),
+      builder: (context) => const StyleSelectorDialog(),
+    );
+  }
+
   void _startGame() async {
     HapticFeedback.mediumImpact();
     await Navigator.of(context).push(
@@ -69,6 +81,8 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final highScore = LocalStorageService.getHighScore();
+    // Watch gameSate for style changes to rebuild UI
+    context.watch<GameState>();
 
     return Scaffold(
       body: Stack(
@@ -87,8 +101,14 @@ class _HomeScreenState extends State<HomeScreen>
                     vertical: 16.h,
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      // Style selector button (left)
+                      _buildIconButton(
+                        icon: Icons.palette_outlined,
+                        onTap: _openStyleSelector,
+                      ),
+                      // Sound button (right)
                       _buildIconButton(
                         icon: _soundEnabled
                             ? Icons.volume_up

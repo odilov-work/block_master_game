@@ -3,6 +3,7 @@ import 'package:block_master_game/core/extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:block_master_game/piece_generator.dart';
 import 'package:block_master_game/widgets/game_grid.dart'; // For ClearAnimationType
+import 'package:block_master_game/styles/block_style.dart';
 
 class GridPainter extends CustomPainter {
   final List<List<GridCell>> grid;
@@ -17,6 +18,9 @@ class GridPainter extends CustomPainter {
   final Set<int> previewCols;
   final Color? previewColor;
   final ClearAnimationType animationType;
+  final BlockStyle blockStyle;
+
+  late final BlockStylePainter _stylePainter;
 
   GridPainter({
     required this.grid,
@@ -31,29 +35,21 @@ class GridPainter extends CustomPainter {
     this.previewCols = const {},
     this.previewColor,
     this.animationType = ClearAnimationType.fade,
-  });
+    this.blockStyle = BlockStyle.neon,
+  }) {
+    _stylePainter = getBlockStylePainter(blockStyle);
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Neon glow grid lines
-    final glowPaint = Paint()
-      ..color = const Color(0xFF6C5CE7).withOpacityX(0.15)
-      ..strokeWidth = 3
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
-
-    final linePaint = Paint()
-      ..color = const Color(0xFF6C5CE7).withOpacityX(0.4)
-      ..strokeWidth = 1;
-
-    for (int i = 0; i <= GameConstants.gridSize; i++) {
-      final pos = i * cellSize;
-      // Glow
-      canvas.drawLine(Offset(pos, 0), Offset(pos, size.height), glowPaint);
-      canvas.drawLine(Offset(0, pos), Offset(size.width, pos), glowPaint);
-      // Line
-      canvas.drawLine(Offset(pos, 0), Offset(pos, size.height), linePaint);
-      canvas.drawLine(Offset(0, pos), Offset(size.width, pos), linePaint);
-    }
+    // Draw grid lines using style painter
+    _stylePainter.drawGridLines(
+      canvas,
+      size,
+      cellSize,
+      GameConstants.gridSize,
+      const Color(0xFF6C5CE7),
+    );
 
     for (int y = 0; y < GameConstants.gridSize; y++) {
       for (int x = 0; x < GameConstants.gridSize; x++) {
@@ -83,7 +79,7 @@ class GridPainter extends CustomPainter {
       );
     }
 
-    // --- O'ZGARTIRILGAN QISM: Faqat yaroqli joy bo'lsa chiziladi ---
+    // --- Faqat yaroqli joy bo'lsa chiziladi ---
     if (hoverPosition != null && hoverPiece != null && canPlace) {
       for (var cell in hoverPiece!.cells) {
         int x = hoverPosition!.dx.toInt() + cell.dx.toInt();
@@ -93,7 +89,13 @@ class GridPainter extends CustomPainter {
             x < GameConstants.gridSize &&
             y >= 0 &&
             y < GameConstants.gridSize) {
-          _drawPreviewBlock(canvas, x, y, canPlace);
+          final rect = Rect.fromLTWH(
+            x * cellSize + 3,
+            y * cellSize + 3,
+            cellSize - 6,
+            cellSize - 6,
+          );
+          _stylePainter.drawPreviewBlock(canvas, rect, canPlace);
         }
       }
     }
@@ -118,17 +120,14 @@ class GridPainter extends CustomPainter {
     if (isClearing) {
       switch (animationType) {
         case ClearAnimationType.fade:
-          // Simple fade out, slight scale up
           scale = 1.0 + (0.1 * progress);
           opacity = (1.0 - progress).clamp(0.0, 1.0);
           break;
         case ClearAnimationType.scale:
-          // Shrink down
           scale = (1.0 - progress).clamp(0.0, 1.0);
           opacity = 1.0;
           break;
         case ClearAnimationType.explosion:
-          // Expand and fade
           scale = 1.0 + (0.5 * progress);
           opacity = (1.0 - progress).clamp(0.0, 1.0);
           break;
@@ -140,77 +139,22 @@ class GridPainter extends CustomPainter {
     }
 
     final rect = Rect.fromLTWH(
-      x * cellSize + 2,
-      y * cellSize + 2,
-      cellSize - 4,
-      cellSize - 4,
-    );
-    final rRect = RRect.fromRectAndRadius(rect, Radius.zero);
-
-    // 1. Draw Shadow/Glow (Simplified)
-    if (!isClearing) {
-      // Static glow for normal blocks
-      canvas.drawRRect(
-        rRect.inflate(2),
-        Paint()
-          ..color = color.withOpacityX(0.3)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-      );
-    } else {
-      // Simplified glow for clearing blocks (no dynamic blur radius)
-      if (opacity > 0.1) {
-        canvas.drawRRect(
-          rRect.inflate(4 * progress),
-          Paint()
-            ..color = color.withOpacityX(0.4 * opacity)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-        );
-      }
-    }
-
-    // 2. Draw Main Block Body
-    final blockColor = color.withOpacityX(opacity);
-
-    // Optimization: Skip gradient for clearing blocks if they are very transparent
-    if (isClearing && opacity < 0.5) {
-      canvas.drawRRect(rRect, Paint()..color = blockColor);
-    } else {
-      final gradient = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          blockColor,
-          Color.lerp(blockColor, Colors.black, 0.25)!.withOpacityX(opacity),
-        ],
-      );
-      canvas.drawRRect(rRect, Paint()..shader = gradient.createShader(rect));
-    }
-
-    // 3. Top Highlight (Reflection)
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(
-          x * cellSize + 4,
-          y * cellSize + 4,
-          cellSize - 10,
-          cellSize / 4,
-        ),
-        Radius.zero,
-      ),
-      Paint()
-        ..color = Colors.white.withOpacityX(isClearing ? 0.4 * opacity : 0.35),
+      x * cellSize + 3,
+      y * cellSize + 3,
+      cellSize - 6,
+      cellSize - 6,
     );
 
-    // 4. Border
-    canvas.drawRRect(
-      rRect,
-      Paint()
-        ..color = color.withOpacityX(isClearing ? 0.8 * opacity : 0.7)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
+    // Use BlockStylePainter for drawing
+    _stylePainter.drawBlock(
+      canvas,
+      rect,
+      color,
+      isClearing: isClearing,
+      opacity: opacity,
     );
 
-    // 5. Special Effects (Explosion Ring)
+    // Special Effects for clearing (Explosion Ring)
     if (isClearing && animationType == ClearAnimationType.explosion) {
       canvas.drawCircle(
         Offset(centerX, centerY),
@@ -222,8 +166,9 @@ class GridPainter extends CustomPainter {
       );
     }
 
-    // 6. White Flash Overlay (Instead of saveLayer)
+    // White Flash Overlay for clearing
     if (isClearing) {
+      final rRect = RRect.fromRectAndRadius(rect, Radius.zero);
       canvas.drawRRect(
         rRect,
         Paint()..color = Colors.white.withOpacityX(0.3 * opacity),
@@ -264,41 +209,6 @@ class GridPainter extends CustomPainter {
       path,
       Paint()
         ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
-  }
-
-  void _drawPreviewBlock(Canvas canvas, int x, int y, bool valid) {
-    if (!valid) {
-      return;
-    }
-
-    final rect = Rect.fromLTWH(
-      x * cellSize + 2,
-      y * cellSize + 2,
-      cellSize - 4,
-      cellSize - 4,
-    );
-    final rRect = RRect.fromRectAndRadius(rect, Radius.zero);
-
-    // Neon glow for preview
-    canvas.drawRRect(
-      rRect.inflate(2),
-      Paint()
-        ..color = const Color(0xFF00FFFF).withOpacityX(0.4)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
-    );
-
-    canvas.drawRRect(
-      rRect,
-      Paint()..color = const Color(0xFF00FFFF).withOpacityX(0.2),
-    );
-
-    canvas.drawRRect(
-      rRect,
-      Paint()
-        ..color = const Color(0xFF00FFFF).withOpacityX(0.8)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2,
     );

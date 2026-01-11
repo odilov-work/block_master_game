@@ -34,7 +34,7 @@ class LocalStorageService {
   static const String _moveAnalysisEnabledKey = 'move_analysis_enabled';
 
   static bool getMoveAnalysisEnabled() {
-    return _box.get(_moveAnalysisEnabledKey, defaultValue: false);
+    return _box.get(_moveAnalysisEnabledKey, defaultValue: true);
   }
 
   static Future<void> saveMoveAnalysisEnabled(bool enabled) async {
@@ -59,5 +59,16 @@ class LocalStorageService {
 
   static Future<void> clearGameState() async {
     await _box.delete(_gameStateKey);
+  }
+
+  // Block Style
+  static const String _blockStyleKey = 'block_style';
+
+  static int getBlockStyleIndex() {
+    return _box.get(_blockStyleKey, defaultValue: 0);
+  }
+
+  static Future<void> saveBlockStyleIndex(int index) async {
+    await _box.put(_blockStyleKey, index);
   }
 }

@@ -237,7 +237,6 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
         decoration: BoxDecoration(
           color: GameConstants.gridColor,
           borderRadius: BorderRadius.zero,
-          border: Border.all(color: GameConstants.gridLineColor, width: 2),
           boxShadow: [
             BoxShadow(
               color: GameConstants.accentColor.withOpacityX(0.2),
@@ -251,24 +250,42 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.zero,
-          child: CustomPaint(
-            painter: GridPainter(
-              grid: widget.grid,
-              cellSize: cellSize,
-              hoverPosition: snappedPos,
-              hoverPiece: widget.draggingPiece,
-              canPlace: canPlace,
-              clearingCells: widget.gameState.clearingCells,
-              isClearing: widget.gameState.isClearing,
-              clearProgress: _clearAnimation.value,
-              previewRows: previewRows,
-              previewCols: previewCols,
-              previewColor: widget.draggingPiece?.color,
-              animationType: _currentAnimationType,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Grid content
+            CustomPaint(
+              size: Size(widget.gridSize, widget.gridSize),
+              painter: GridPainter(
+                grid: widget.grid,
+                cellSize: cellSize,
+                hoverPosition: snappedPos,
+                hoverPiece: widget.draggingPiece,
+                canPlace: canPlace,
+                clearingCells: widget.gameState.clearingCells,
+                isClearing: widget.gameState.isClearing,
+                clearProgress: _clearAnimation.value,
+                previewRows: previewRows,
+                previewCols: previewCols,
+                previewColor: widget.draggingPiece?.color,
+                animationType: _currentAnimationType,
+                blockStyle: widget.gameState.blockStyle,
+              ),
             ),
-          ),
+            // Border overlay (tashqarida)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: GameConstants.gridLineColor,
+                      width: 2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -359,26 +359,6 @@ class PieceShapes {
         ],
         color: GameConstants.pieceColors[1],
       ),
-      // Plus shape
-      PieceShape(
-        name: 'plus',
-        shape: [
-          [0, 1, 0],
-          [1, 1, 1],
-          [0, 1, 0],
-        ],
-        color: GameConstants.pieceColors[2],
-      ),
-      PieceShape(
-        name: "rectangle",
-        shape: [
-          [1, 1, 1, 1],
-          [1, 0, 0, 1],
-          [1, 0, 0, 1],
-          [1, 1, 1, 1],
-        ],
-        color: GameConstants.pieceColors[2],
-      ),
     ];
   }
 
@@ -719,8 +699,7 @@ class SmartPieceGenerator {
     // Noqulay shakllar
     challenging.addAll(
       allShapes.where(
-        (s) =>
-            ['L', 'reverseL', 'T', 'S', 'Z', 'bigL', 'plus'].contains(s.name),
+        (s) => ['L', 'reverseL', 'T', 'S', 'Z', 'bigL'].contains(s.name),
       ),
     );
 

@@ -5,6 +5,7 @@ import 'package:block_master_game/piece_generator.dart';
 import 'package:block_master_game/services/audio_service.dart';
 import 'package:block_master_game/services/local_storage_service.dart';
 import 'package:block_master_game/services/move_analysis_service.dart';
+import 'package:block_master_game/styles/block_style.dart';
 
 class GameState extends ChangeNotifier {
   late List<List<GridCell>> grid;
@@ -22,6 +23,22 @@ class GameState extends ChangeNotifier {
   final SmartMoveAnalysisService _analysisService = SmartMoveAnalysisService();
   MoveAnalysisResult? lastMoveAnalysis;
 
+  // Block Style
+  BlockStyle _blockStyle = BlockStyle.neon;
+  BlockStyle get blockStyle => _blockStyle;
+
+  void setBlockStyle(BlockStyle style) {
+    _blockStyle = style;
+    LocalStorageService.saveBlockStyleIndex(style.index);
+    notifyListeners();
+  }
+
+  void _loadBlockStyle() {
+    final index = LocalStorageService.getBlockStyleIndex();
+    _blockStyle =
+        BlockStyle.values[index.clamp(0, BlockStyle.values.length - 1)];
+  }
+
   GameState() {
     _smartGenerator = SmartPieceGenerator(
       challengeAfterHelpful: 3, // Qiyinroq shakllar tezroq keladi
@@ -31,6 +48,7 @@ class GameState extends ChangeNotifier {
     );
     _initializeGrid();
     _loadHighScore();
+    _loadBlockStyle();
     _generateNewPieces();
   }
 
